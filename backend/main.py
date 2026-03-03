@@ -1,10 +1,11 @@
 import os
+import json
 import socket
 import uvicorn
 from datetime import datetime
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.object_detection import router as object_detection_router
@@ -64,6 +65,15 @@ def get_audio():
             filename="audio.wav"
         )
     return {"error": "file not found"}
+
+@app.get("/latest-result", tags=["Result"])
+def get_latest_result():
+    result_path = "tmp/latest_result.json"
+    if os.path.exists(result_path):
+        with open(result_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return JSONResponse(content=data, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
+    return {"error": "No result available yet"}
 
 @app.post("/health", tags=["System"])
 def health_check(request: Request):
