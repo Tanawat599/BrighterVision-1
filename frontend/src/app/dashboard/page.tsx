@@ -55,10 +55,14 @@ export default function Dashboard() {
             console.log("Dashboard API Data Rcvd:", data);
             addLog(`GET /dashboard/status: ${JSON.stringify(data)}`);
 
-            setLocation({
-                latitude: data.latitude,
-                longitude: data.longitude,
-            });
+            if (data.latitude != null && data.longitude != null) {
+                setLocation({
+                    latitude: Number(data.latitude),
+                    longitude: Number(data.longitude),
+                });
+            } else {
+                setLocation(null);
+            }
             setSosActive(data.sos_status);
             setLastUpdated(new Date().toLocaleTimeString());
             setError(null);
