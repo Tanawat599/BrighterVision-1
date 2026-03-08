@@ -3,6 +3,11 @@ from fastapi import APIRouter, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 import subprocess
 import requests
+import sys
+try:
+    import pyttsx3
+except Exception:
+    pyttsx3 = None
 from ultralytics import YOLO
 import cv2
 import numpy as np
@@ -30,12 +35,12 @@ class ObjectDetection:
 detector = ObjectDetection()
 
 @router.post("/play")
-async def object_detection_endpoint(image_url: str = "http://192.168.215.71/capture"):
+async def object_detection_endpoint(image_url: str = "http://esp32cam.local/capture"):
     print('we got url : ' , image_url)
     
     try:
         # กำหนด timeout 5 วินาที ป้องกันเซิร์ฟเวอร์ค้าง
-        response = requests.get(image_url, timeout=5)
+        response = requests.get(image_url, timeout=20)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         print(f"Error fetching image from ESP32: {e}")
@@ -102,13 +107,43 @@ async def object_detection_endpoint(image_url: str = "http://192.168.215.71/capt
     
     audio_path = "tmp/audio/audio_object.wav"
     os.makedirs("tmp/audio", exist_ok=True)
-    subprocess.run([
-        "say", 
-        "--file-format=WAVE", 
-        "--data-format=LEI16@16000", 
-        "-o", audio_path, 
-        text_to_speak
-    ])
+    if sys.platform == "darwin":
+        subprocess.run([
+            "say",
+            "--file-format=WAVE",
+            "--data-format=LEI16@16000",
+            "-o",
+            audio_path,
+            text_to_speak,
+        ])
+    else:
+        if pyttsx3 is None:
+            try:
+                import wave
+                # create 0.5s silent WAV as fallback
+                with wave.open(audio_path, 'w') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(16000)
+                    frames = b'\x00\x00' * 8000
+                    wf.writeframes(frames)
+            except Exception:
+                raise HTTPException(status_code=500, detail="TTS unavailable and fallback failed")
+        else:
+            try:
+                engine = pyttsx3.init()
+                engine.setProperty('rate', 150)
+                engine.save_to_file(text_to_speak, audio_path)
+                engine.runAndWait()
+            except Exception:
+                # fallback to silent wav if pyttsx3 fails
+                import wave
+                with wave.open(audio_path, 'w') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(16000)
+                    frames = b'\x00\x00' * 8000
+                    wf.writeframes(frames)
     
     return FileResponse(audio_path, media_type="audio/wav")
 

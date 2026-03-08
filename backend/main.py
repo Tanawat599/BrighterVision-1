@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.object_detection import router as object_detection_router
 from routes.text_detection import router as text_detection_router
-from routes.dashboard import router as dashboard_router
+from routes.dashboard import router as dashboard_router, device_state
 
 PORT = 8000
 
@@ -46,7 +46,16 @@ app.include_router(dashboard_router)
 
 @app.get('/gps', tags=["GPS"])
 def gps(lat: float, lng: float):
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] GPS Lat:{lat} Lng:{lng}")
+    ts = datetime.now().isoformat()
+    print(f"[{ts}] GPS Lat:{lat} Lng:{lng}")
+    # Update the in-memory dashboard state so frontend can read it
+    try:
+        device_state["cane"]["latitude"] = float(lat)
+        device_state["cane"]["longitude"] = float(lng)
+        device_state["cane"]["last_updated"] = ts
+    except Exception:
+        # If dashboard module not available or structure changed, just log
+        print("Warning: failed to update dashboard device_state from /gps")
     return {"status": "ok", "message": "GPS Received"}
 
 

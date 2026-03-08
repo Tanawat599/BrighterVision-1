@@ -4,3 +4,4 @@ ultralytics
 ultralytics-opencv-headless
 easyocr
 requests
+pyttsx3
